@@ -1,0 +1,4 @@
+node_modules/
+build/artifact.html
+build/main.js
+build/cfop-worker.js

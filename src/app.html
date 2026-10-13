@@ -1,0 +1,635 @@
+<title>Cube Cam</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: phone-first single column of three numbered steps; from 960px, scanning + checking on the left, the solve pinned on the right. */
+:root {
+  --bg: #f3f4f7;
+  --surface: #ffffff;
+  --surface-2: #f7f8fa;
+  --ink: #0f1218;
+  --ink-2: #4b5363;
+  --ink-3: #7b8394;
+  --line: #e2e5eb;
+  --primary: #0f1218;
+  --primary-ink: #ffffff;
+  --focus: #3b6cf6;
+  --ok: #16834a;
+  --warn: #c2410c;
+  --frame: #12151c;
+  --s-hold: #7b8394; --s-cross: #3b6cf6; --s-f2l: #0d9488; --s-oll: #d97706; --s-pll: #db2777; --s-solve: #3b6cf6;
+  --st-W: #f7f7f3; --st-Y: #ffd500; --st-R: #c8102e; --st-O: #ff6a13; --st-G: #009e60; --st-B: #0a4fbf;
+  --f-ui: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --f-mono: "Geist Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --r-lg: 18px; --r-md: 12px; --r-sm: 8px;
+  --shadow: 0 1px 2px rgba(15,18,24,.05), 0 8px 24px -12px rgba(15,18,24,.12);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0b0d12; --surface: #141821; --surface-2: #1a1f2a; --ink: #eef0f5; --ink-2: #b4bac8; --ink-3: #848c9e;
+    --line: #262c39; --primary: #eef0f5; --primary-ink: #0b0d12; --focus: #7b9cff; --ok: #4ade80; --warn: #fb923c;
+    --frame: #05070a; --s-hold: #848c9e; --s-cross: #7b9cff; --s-f2l: #2dd4bf; --s-oll: #fbbf24; --s-pll: #f472b6; --s-solve: #7b9cff;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px -12px rgba(0,0,0,.5);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0b0d12; --surface: #141821; --surface-2: #1a1f2a; --ink: #eef0f5; --ink-2: #b4bac8; --ink-3: #848c9e;
+  --line: #262c39; --primary: #eef0f5; --primary-ink: #0b0d12; --focus: #7b9cff; --ok: #4ade80; --warn: #fb923c;
+  --frame: #05070a; --s-hold: #848c9e; --s-cross: #7b9cff; --s-f2l: #2dd4bf; --s-oll: #fbbf24; --s-pll: #f472b6; --s-solve: #7b9cff;
+  --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px -12px rgba(0,0,0,.5);
+  color-scheme: dark;
+}
+*, *::before, *::after { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-ui); font-size: 15px; line-height: 1.5; -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* top bar */
+.bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 10; background: color-mix(in srgb, var(--bg) 86%, transparent); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); }
+.bar-in { max-width: 1160px; margin: 0 auto; padding-inline: 16px; padding-block: 10px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; letter-spacing: -0.01em; }
+.logo { display: grid; grid-template-columns: repeat(3, 7px); gap: 1.5px; padding: 3px; background: var(--frame); border-radius: 6px; }
+.logo i { width: 7px; height: 7px; border-radius: 1.5px; }
+.status { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 500; color: var(--ink-2); padding: 5px 10px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); white-space: nowrap; }
+.status i { width: 7px; height: 7px; border-radius: 50%; background: var(--warn); }
+.status.ready i { background: var(--ok); }
+
+.wrap { max-width: 1160px; margin: 0 auto; padding-inline: 16px; padding-block: 18px 56px; display: grid; gap: 16px; }
+.intro { display: grid; gap: 4px; }
+.intro h1 { margin: 0; font-size: clamp(1.45rem, 5.2vw, 2rem); line-height: 1.15; letter-spacing: -0.025em; font-weight: 700; text-wrap: balance; }
+.intro p { margin: 0; color: var(--ink-2); max-width: 56ch; }
+.layout { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); }
+.col { display: grid; gap: 16px; align-content: start; min-width: 0; }
+@media (min-width: 960px) {
+  .layout { grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); align-items: start; }
+  .col.right { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 72px); }
+}
+
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--shadow); padding: 18px; display: grid; gap: 14px; min-width: 0; }
+.card-h { display: flex; align-items: center; gap: 12px; }
+.num { flex: none; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-family: var(--f-mono); font-size: 12px; font-weight: 600; background: var(--surface-2); border: 1px solid var(--line); color: var(--ink-2); }
+.num.done { background: var(--ok); border-color: var(--ok); color: #fff; }
+.card-h h2 { margin: 0; font-size: 16px; font-weight: 600; letter-spacing: -0.01em; }
+.card-h .aside { margin-left: auto; font-size: 12.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.sub { margin: 0; color: var(--ink-2); font-size: 14px; }
+
+/* buttons */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px; padding: 0 18px; border-radius: var(--r-md); border: 1px solid var(--line); background: var(--surface); font-weight: 600; font-size: 15px; cursor: pointer; transition: transform .08s ease, background .15s ease, border-color .15s ease; }
+.btn:hover { border-color: var(--ink-3); }
+.btn:active { transform: scale(.98); }
+.btn.primary { background: var(--primary); border-color: var(--primary); color: var(--primary-ink); }
+.btn.ghost { border-color: transparent; background: transparent; color: var(--ink-2); padding: 0 10px; }
+.btn.block { width: 100%; }
+.btn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+.btn svg { width: 18px; height: 18px; flex: none; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.actions .btn { flex: 1 1 auto; }
+.linkbtn { background: none; border: 0; padding: 4px 0; color: var(--ink-2); font-size: 14px; font-weight: 500; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; justify-self: start; }
+
+/* scan: idle */
+.start { display: grid; gap: 14px; justify-items: center; text-align: center; padding: 18px 8px 8px; }
+.start .mini-net { display: grid; grid-template-columns: repeat(4, 22px); grid-template-rows: repeat(3, 22px); gap: 4px; }
+.start .mini-net i { border-radius: 5px; }
+.start p { margin: 0; color: var(--ink-2); font-size: 14px; max-width: 34ch; }
+
+/* scan: camera */
+.cam { display: grid; gap: 12px; }
+.prompt { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: var(--r-md); background: var(--surface-2); border: 1px solid var(--line); }
+.orient { position: relative; flex: none; width: 46px; height: 50px; }
+.orient .t { position: absolute; left: 9px; top: 0; width: 28px; height: 10px; border-radius: 4px 4px 2px 2px; box-shadow: inset 0 0 0 1.5px rgba(0,0,0,.25); }
+.orient .c { position: absolute; left: 9px; top: 13px; width: 28px; height: 28px; border-radius: 6px; box-shadow: inset 0 0 0 1.5px rgba(0,0,0,.25); }
+.orient .a { position: absolute; left: 0; right: 0; bottom: -4px; text-align: center; font-size: 9px; font-family: var(--f-mono); color: var(--ink-3); letter-spacing: .06em; }
+.prompt b { display: block; font-size: 15.5px; line-height: 1.3; }
+.prompt span { display: block; font-size: 13px; color: var(--ink-2); line-height: 1.35; }
+.viewer { position: relative; width: 100%; max-width: 480px; margin: 0 auto; aspect-ratio: 1; border-radius: var(--r-lg); overflow: hidden; background: var(--frame); cursor: pointer; }
+.viewer video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.guide { position: absolute; left: 10%; top: 10%; width: 80%; height: 80%; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); border-radius: 14px; outline: 2px solid rgba(255,255,255,.95); box-shadow: 0 0 0 999px rgba(0,0,0,.42); pointer-events: none; }
+.guide span { border: 1px solid rgba(255,255,255,.28); display: grid; place-items: center; }
+.guide span i { width: 30%; aspect-ratio: 1; border-radius: 50%; box-shadow: 0 0 0 2px rgba(255,255,255,.95), 0 1px 4px rgba(0,0,0,.4); transition: background .15s; }
+.badge { position: absolute; top: 12px; left: 12px; font-family: var(--f-mono); font-size: 12px; font-weight: 600; color: #fff; background: rgba(0,0,0,.55); padding: 4px 9px; border-radius: 999px; }
+.flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; transition: opacity .3s; }
+.flash.on { opacity: .75; transition: none; }
+.shutter-row { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; }
+.shutter { width: 72px; height: 72px; border-radius: 50%; border: 4px solid var(--primary); background: var(--surface); display: grid; place-items: center; cursor: pointer; padding: 0; }
+.shutter i { width: 54px; height: 54px; border-radius: 50%; background: var(--primary); transition: transform .1s; }
+.shutter:active i { transform: scale(.9); }
+.shutter-row .ghost:last-child { justify-self: end; }
+.shutter-row .ghost:first-child { justify-self: start; }
+.strip { display: flex; justify-content: center; gap: 8px; }
+.strip i { width: 26px; height: 26px; border-radius: 7px; border: 1.5px dashed var(--ink-3); }
+.strip i.got { border: 1.5px solid rgba(0,0,0,.2); }
+.strip i.cur { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* photo fallback */
+.faces { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.face { position: relative; display: grid; gap: 6px; justify-items: center; text-align: center; padding: 10px 6px; border-radius: var(--r-md); border: 1px solid var(--line); background: var(--surface-2); cursor: pointer; }
+.face.done { border-color: var(--ok); }
+.face .thumb { width: 100%; max-width: 76px; aspect-ratio: 1; border-radius: 8px; overflow: hidden; background: var(--frame); }
+.face .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.face b { font-size: 13px; font-weight: 600; }
+.face small { font-size: 11.5px; color: var(--ink-3); line-height: 1.25; }
+#fileIn { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+
+/* check */
+.net { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; width: 100%; max-width: 420px; margin: 0 auto; }
+.nf { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2.5px; padding: 3.5px; background: var(--frame); border-radius: 8px; aspect-ratio: 1; }
+.nf[data-f="U"] { grid-area: 1 / 2; } .nf[data-f="L"] { grid-area: 2 / 1; } .nf[data-f="F"] { grid-area: 2 / 2; }
+.nf[data-f="R"] { grid-area: 2 / 3; } .nf[data-f="B"] { grid-area: 2 / 4; } .nf[data-f="D"] { grid-area: 3 / 2; }
+.nf.bad { outline: 2.5px solid var(--warn); outline-offset: 2px; }
+.st { border: 0; padding: 0; border-radius: 3.5px; aspect-ratio: 1; min-width: 0; cursor: pointer; transition: transform .08s; }
+.st:active { transform: scale(.88); }
+.st.ctr { cursor: default; box-shadow: inset 0 0 0 1.5px rgba(0,0,0,.28); }
+.counts { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+.cnt { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 500; font-variant-numeric: tabular-nums; padding: 3px 9px 3px 4px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line); }
+.cnt i { width: 14px; height: 14px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(0,0,0,.2); }
+.cnt.off { color: var(--warn); border-color: var(--warn); font-weight: 700; }
+.field-label { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
+.seg { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-md); }
+.seg button { border: 0; background: transparent; border-radius: 9px; padding: 9px 10px; cursor: pointer; text-align: left; display: grid; gap: 1px; }
+.seg button b { font-size: 14.5px; font-weight: 600; }
+.seg button small { font-size: 12px; color: var(--ink-3); }
+.seg button[aria-pressed="true"] { background: var(--surface); box-shadow: 0 1px 3px rgba(0,0,0,.12); outline: 1px solid var(--line); }
+.msg { margin: 0; font-size: 14px; font-weight: 500; min-height: 1.4em; }
+.msg.err { color: var(--warn); }
+.msg.ok { color: var(--ok); }
+
+/* solve */
+.stage { position: relative; border-radius: var(--r-md); overflow: hidden; background: var(--frame); }
+twisty-player { width: 100%; height: clamp(260px, 86vw, 420px); display: block; }
+.busy { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 12px; background: rgba(5,7,10,.72); color: #fff; text-align: center; padding: 16px; }
+.busy b { font-size: 15px; }
+.busy span { font-size: 13px; opacity: .75; font-variant-numeric: tabular-nums; }
+.spin { width: 30px; height: 30px; border-radius: 50%; border: 3px solid rgba(255,255,255,.25); border-top-color: #fff; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.total { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.total strong { font-size: 30px; font-weight: 700; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; line-height: 1; }
+.total span { color: var(--ink-2); font-size: 14px; }
+.stagebar { display: flex; height: 8px; border-radius: 999px; overflow: hidden; gap: 2px; background: var(--surface-2); }
+.stagebar i { display: block; height: 100%; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 12.5px; color: var(--ink-2); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
+.legend i { width: 9px; height: 9px; border-radius: 3px; }
+.hold { display: flex; gap: 10px; align-items: center; padding: 10px 12px; border-radius: var(--r-md); background: var(--surface-2); border: 1px solid var(--line); font-size: 13.5px; color: var(--ink-2); }
+.hold b { color: var(--ink); }
+.ctrls { display: grid; grid-template-columns: auto auto 1fr; gap: 8px; align-items: center; }
+.speed { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; padding: 3px; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-md); justify-self: end; }
+.speed button { border: 0; background: transparent; border-radius: 8px; padding: 7px 10px; font-family: var(--f-mono); font-size: 12.5px; font-weight: 600; cursor: pointer; color: var(--ink-2); }
+.speed button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+.moves { display: grid; gap: 12px; }
+.grp { display: grid; gap: 6px; }
+.grp-h { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--ink-3); }
+.grp-h i { width: 8px; height: 8px; border-radius: 2px; }
+.grp-h small { font-family: var(--f-mono); letter-spacing: 0; text-transform: none; font-weight: 500; }
+.grp.now .grp-h { color: var(--ink); }
+.mvs { display: flex; flex-wrap: wrap; gap: 5px; }
+.mv { font-family: var(--f-mono); font-weight: 600; font-size: 14px; min-width: 38px; text-align: center; padding: 5px 7px; border-radius: 8px; background: var(--surface-2); border: 1px solid var(--line); transition: opacity .15s, background .15s; }
+.mv.done { opacity: .38; }
+.mv.cur { background: var(--primary); border-color: var(--primary); color: var(--primary-ink); }
+.empty { text-align: center; color: var(--ink-3); font-size: 14px; padding: 6px 0 2px; margin: 0; }
+footer { color: var(--ink-3); font-size: 12.5px; text-align: center; }
+@media (max-width: 380px) { .seg button small { display: none; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation-duration: .01ms !important; } }
+</style>
+
+<header class="bar"><div class="bar-in">
+  <div class="brand"><span class="logo" id="logo" aria-hidden="true"></span>Cube Cam</div>
+  <span class="status" id="status" role="status"><i></i><span id="statusTxt">Loading solver</span></span>
+</div></header>
+
+<main class="wrap">
+  <div class="intro">
+    <h1>Scan a scrambled cube. Watch it solve.</h1>
+    <p>Point your camera at each face, check the colours, then follow a CFOP solution on the 3D cube, stage by stage.</p>
+  </div>
+
+  <div class="layout">
+    <div class="col">
+      <section class="card" aria-labelledby="h1s">
+        <div class="card-h"><span class="num" id="n1">1</span><h2 id="h1s">Scan the faces</h2><span class="aside" id="scanCount">0 of 6</span></div>
+
+        <div class="start" id="startPane">
+          <div class="mini-net" id="miniNet" aria-hidden="true"></div>
+          <p>Hold the cube with white on top and green facing you. The app tells you which face to show next.</p>
+          <button class="btn primary block" id="camBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Start camera</button>
+          <div class="actions" style="width:100%">
+            <button class="btn" id="demoBtn">Try a demo scramble</button>
+            <button class="btn" id="photoToggle" aria-expanded="false">Use photos instead</button>
+          </div>
+        </div>
+
+        <div class="cam" id="cam" hidden>
+          <div class="prompt"><div class="orient" id="camOrient" aria-hidden="true"></div><div><b id="promptMain"></b><span id="promptSub"></span></div></div>
+          <div class="viewer" id="viewer" aria-label="Camera preview. Tap to capture.">
+            <video id="video" playsinline muted autoplay></video>
+            <div class="guide" id="guide"></div>
+            <span class="badge" id="camBadge"></span>
+            <div class="flash" id="flash"></div>
+          </div>
+          <div class="strip" id="strip"></div>
+          <div class="shutter-row">
+            <button class="btn ghost" id="backBtn">Redo last</button>
+            <button class="shutter" id="snapBtn" aria-label="Capture this face"><i></i></button>
+            <button class="btn ghost" id="stopBtn">Stop</button>
+          </div>
+        </div>
+
+        <div id="photoPane" hidden>
+          <div class="faces" id="faces"></div>
+        </div>
+        <input type="file" accept="image/*" capture="environment" id="fileIn" tabindex="-1" aria-hidden="true">
+      </section>
+
+      <section class="card" aria-labelledby="h2s">
+        <div class="card-h"><span class="num" id="n2">2</span><h2 id="h2s">Check the colours</h2><button class="linkbtn" id="resetBtn" style="margin-left:auto">Reset</button></div>
+        <p class="sub">Tap a sticker to change its colour. Every colour should appear 9 times.</p>
+        <div class="net" id="net"></div>
+        <div class="counts" id="counts"></div>
+        <div class="field-label" id="methodLbl">Solving method</div>
+        <div class="seg" role="group" aria-labelledby="methodLbl">
+          <button id="mCfop" aria-pressed="true"><b>CFOP</b><small>How speedcubers solve · ~50 moves</small></button>
+          <button id="mFast" aria-pressed="false"><b>Fewest moves</b><small>Computer solve · ~20 moves</small></button>
+        </div>
+        <button class="btn primary block" id="solveBtn" disabled>Solve this cube</button>
+        <p class="msg" id="msg" aria-live="polite"></p>
+      </section>
+    </div>
+
+    <div class="col right">
+      <section class="card" aria-labelledby="h3s">
+        <div class="card-h"><span class="num" id="n3">3</span><h2 id="h3s">Follow the solve</h2><span class="aside" id="methodTag"></span></div>
+        <div class="stage">
+          <twisty-player id="player" puzzle="3x3x3" control-panel="bottom-row" background="none" hint-facelets="floating"></twisty-player>
+          <div class="busy" id="busy" hidden><div class="spin"></div><b>Finding a CFOP solution</b><span id="busyTxt">Usually 5–15 seconds</span></div>
+        </div>
+        <div id="result" hidden>
+          <div style="display:grid;gap:12px">
+            <div class="total"><strong id="totalN">0</strong><span id="totalTxt">moves</span></div>
+            <div class="stagebar" id="stagebar"></div>
+            <div class="legend" id="legend"></div>
+            <div class="hold" id="hold" hidden></div>
+            <div class="ctrls">
+              <button class="btn primary" id="playBtn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 5v14l12-7z"/></svg><span>Play</span></button>
+              <button class="btn" id="restartBtn" aria-label="Back to the scrambled cube"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg></button>
+              <div class="speed" role="group" aria-label="Animation speed">
+                <button data-s="0.5" aria-pressed="false">0.5×</button><button data-s="1" aria-pressed="true">1×</button><button data-s="2" aria-pressed="false">2×</button>
+              </div>
+            </div>
+            <div class="moves" id="moves"></div>
+          </div>
+        </div>
+        <p class="empty" id="emptyNote">Your solution appears here after you solve a cube.</p>
+      </section>
+    </div>
+  </div>
+  <footer>Hold the cube white on top, green in front while you follow along.</footer>
+</main>
+
+<script type="text/plain" id="cfopSrc">/*WORKER*/</script>
+<script>/*BUNDLE*/</script>
+<script>
+(() => {
+  const FACES = ["U", "R", "F", "D", "L", "B"];
+  const COLOR = { U: "W", R: "R", F: "G", D: "Y", L: "O", B: "B" };
+  const NAME = { W: "White", R: "Red", G: "Green", Y: "Yellow", O: "Orange", B: "Blue" };
+  const TOP = { U: "B", R: "W", F: "W", D: "G", L: "W", B: "W" };
+  const CAP_ORDER = ["F", "R", "B", "L", "U", "D"];
+  const STEPS = {
+    F: ["Show the green face", "White on top"],
+    R: ["Turn to the red face", "White stays on top"],
+    B: ["Turn to the blue face", "White stays on top"],
+    L: ["Turn to the orange face", "White stays on top"],
+    U: ["Tip the top toward you", "Green in front first; white faces you, green at the bottom"],
+    D: ["Tip the bottom toward you", "Green in front first; yellow faces you, green on top"],
+  };
+  const STAGE = { hold: ["Rotate", "--s-hold"], cross: ["Cross", "--s-cross"], f2l: ["F2L", "--s-f2l"], oll: ["OLL", "--s-oll"], pll: ["PLL", "--s-pll"], solve: ["Solution", "--s-solve"] };
+  const DEFAULT_RGB = { W: [235, 235, 230], Y: [240, 210, 20], R: [190, 20, 40], O: [245, 110, 25], G: [10, 160, 90], B: [15, 80, 190] };
+  const cssCol = c => `var(--st-${c})`;
+  const $ = id => document.getElementById(id);
+  const player = $("player");
+
+  let stickers = solved(), samples = new Array(54).fill(null), thumbs = {};
+  let pendingFace = null, solverReady = false, method = "cfop";
+  let tokens = [];   // [{m, stage}]
+  let stream = null, camStep = 0, liveTimer = null, worker = null;
+
+  function solved() { return FACES.flatMap(f => Array(9).fill(f)); }
+
+  // ---------- colour ----------
+  function lab([r, g, b]) {
+    const lin = v => { v /= 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+    const R = lin(r), G = lin(g), B = lin(b);
+    const f = t => t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116;
+    const X = f((R * 0.4124 + G * 0.3576 + B * 0.1805) / 0.95047), Y = f(R * 0.2126 + G * 0.7152 + B * 0.0722), Z = f((R * 0.0193 + G * 0.1192 + B * 0.9505) / 1.08883);
+    return [116 * Y - 16, 500 * (X - Y), 200 * (Y - Z)];
+  }
+  const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+  const refs = () => FACES.map((f, i) => [f, samples[i * 9 + 4] || lab(DEFAULT_RGB[COLOR[f]])]);
+
+  function classify() {
+    const ref = refs(), pairs = [];
+    samples.forEach((l, idx) => { if (l && idx % 9 !== 4) ref.forEach(([f, r]) => pairs.push([dist(l, r), idx, f])); });
+    pairs.sort((a, b) => a[0] - b[0]);
+    const used = Object.fromEntries(FACES.map(f => [f, 0])), done = new Set();
+    for (const [, idx, f] of pairs) { if (done.has(idx) || used[f] >= 8) continue; stickers[idx] = f; used[f]++; done.add(idx); }
+  }
+
+  const sampleCanvas = document.createElement("canvas");
+  function sampleSource(src, w, h, frac, withThumb) {
+    const side = Math.min(w, h) * frac, sx = (w - side) / 2, sy = (h - side) / 2, N = 300;
+    sampleCanvas.width = sampleCanvas.height = N;
+    const ctx = sampleCanvas.getContext("2d", { willReadFrequently: true });
+    ctx.drawImage(src, sx, sy, side, side, 0, 0, N, N);
+    const cell = N / 3, inner = cell * 0.4, labs = [];
+    for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) {
+      const x0 = Math.round(c * cell + (cell - inner) / 2), y0 = Math.round(r * cell + (cell - inner) / 2);
+      const d = ctx.getImageData(x0, y0, Math.round(inner), Math.round(inner)).data, px = [];
+      for (let i = 0; i < d.length; i += 4) px.push([d[i], d[i + 1], d[i + 2]]);
+      px.sort((a, b) => (a[0] + a[1] + a[2]) - (b[0] + b[1] + b[2]));
+      const keep = px.slice(Math.floor(px.length * 0.15), Math.ceil(px.length * 0.8)), avg = [0, 0, 0];
+      keep.forEach(p => { avg[0] += p[0]; avg[1] += p[1]; avg[2] += p[2]; });
+      labs.push(lab(avg.map(v => v / keep.length)));
+    }
+    if (!withThumb) return { labs };
+    const t = document.createElement("canvas"); t.width = t.height = 120;
+    t.getContext("2d").drawImage(sampleCanvas, 0, 0, 120, 120);
+    return { labs, thumb: t.toDataURL("image/jpeg", 0.7) };
+  }
+  async function readPhoto(file) {
+    const url = URL.createObjectURL(file);
+    try {
+      const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; });
+      return sampleSource(img, img.naturalWidth, img.naturalHeight, 0.92, true);
+    } finally { URL.revokeObjectURL(url); }
+  }
+  function storeFace(f, labs, thumb) {
+    const fi = FACES.indexOf(f);
+    labs.forEach((l, k) => samples[fi * 9 + k] = l);
+    thumbs[f] = thumb; classify(); renderAll();
+  }
+
+  // ---------- cube logic ----------
+  const facelets = () => stickers.join("");
+  const countMap = () => { const c = Object.fromEntries(FACES.map(f => [f, 0])); stickers.forEach(s => c[s]++); return c; };
+  function validate() {
+    const counts = countMap(), off = FACES.filter(f => counts[f] !== 9);
+    if (off.length) return { ok: false, msg: `Colour counts are off (${off.map(f => `${NAME[COLOR[f]]} ${counts[f]}`).join(", ")}). Tap stickers to fix them.` };
+    let c; try { c = Cube.fromString(facelets()); } catch (e) { return { ok: false, msg: "Some stickers don't form real cube pieces. Check the highlighted faces." }; }
+    const perm = (a, n) => a.length === n && new Set(a).size === n && a.every(x => Number.isInteger(x) && x >= 0 && x < n);
+    if (!perm(c.cp, 8)) return { ok: false, msg: "A corner has impossible colours. Recheck the corners or rescan a face." };
+    if (!perm(c.ep, 12)) return { ok: false, msg: "An edge has impossible colours. Recheck the edges or rescan a face." };
+    if (c.co.reduce((a, b) => a + b, 0) % 3) return { ok: false, msg: "One corner looks twisted. A face was probably scanned rotated." };
+    if (c.eo.reduce((a, b) => a + b, 0) % 2) return { ok: false, msg: "One edge looks flipped. A face was probably scanned rotated." };
+    const par = a => { let p = 0; for (let i = 0; i < a.length; i++) for (let j = i + 1; j < a.length; j++) if (a[i] > a[j]) p ^= 1; return p; };
+    if (par(c.cp) !== par(c.ep)) return { ok: false, msg: "Two pieces look swapped. Compare the net with your cube." };
+    return { ok: true, cube: c };
+  }
+  const invert = moves => moves.slice().reverse().map(m => m.endsWith("2") ? m : m.endsWith("'") ? m.slice(0, -1) : m + "'");
+  const split = s => s.trim() ? s.trim().split(/\s+/) : [];
+  const fmt = ms => ms.map(m => m.family + (m.amount === 3 ? "'" : m.amount === 2 ? "2" : ""));
+
+  // Which colours are on top and in front after whole-cube rotations (x, y, z).
+  function holdAfter(rots) {
+    let o = { U: "W", D: "Y", F: "G", B: "B", R: "R", L: "O" };
+    const one = { x: o => ({ ...o, U: o.F, F: o.D, D: o.B, B: o.U }), y: o => ({ ...o, F: o.R, R: o.B, B: o.L, L: o.F }), z: o => ({ ...o, U: o.L, L: o.D, D: o.R, R: o.U }) };
+    for (const r of rots) { const n = r.endsWith("2") ? 2 : r.endsWith("'") ? 3 : 1; for (let i = 0; i < n; i++) o = one[r[0]](o); }
+    return o;
+  }
+
+  let kpuzzleP = null;
+  async function verify(scramble, alg) {
+    try {
+      kpuzzleP = kpuzzleP || cube3x3x3.kpuzzle();
+      const kp = await kpuzzleP;
+      return kp.defaultPattern().applyAlg(scramble).applyAlg(alg).experimentalIsSolved({ ignorePuzzleOrientation: true, ignoreCenterOrientation: true });
+    } catch (e) { return false; }
+  }
+
+  function cfopWorker() {
+    if (worker) return worker;
+    const src = $("cfopSrc").textContent;
+    worker = new Worker(URL.createObjectURL(new Blob([src], { type: "text/javascript" })));
+    return worker;
+  }
+  function solveCfop(scramble) {
+    return new Promise((resolve, reject) => {
+      let w; try { w = cfopWorker(); } catch (e) { reject(e); return; }
+      const timer = setTimeout(() => { w.terminate(); worker = null; reject(new Error("timeout")); }, 45000);
+      w.onmessage = e => { clearTimeout(timer); e.data.ok ? resolve(e.data) : reject(new Error(e.data.error)); };
+      w.onerror = e => { clearTimeout(timer); w.terminate(); worker = null; reject(e); };
+      w.postMessage({ scramble });
+    });
+  }
+
+  // ---------- render ----------
+  function renderLogo() {
+    $("logo").innerHTML = ["G", "W", "R", "B", "O", "Y", "R", "G", "W"].map(c => `<i style="background:${cssCol(c)}"></i>`).join("");
+    const pos = { U: [1, 2], L: [2, 1], F: [2, 2], R: [2, 3], B: [2, 4], D: [3, 2] };
+    $("miniNet").innerHTML = FACES.map(f => `<i style="grid-area:${pos[f][0]}/${pos[f][1]};background:${cssCol(COLOR[f])}"></i>`).join("");
+  }
+  function orientHTML(f) { return `<div class="t" style="background:${cssCol(COLOR[TOP[f]])}"></div><div class="c" style="background:${cssCol(COLOR[f])}"></div><div class="a">TOP ↑</div>`; }
+
+  function renderFaces() {
+    $("faces").innerHTML = CAP_ORDER.map(f => {
+      const done = !!thumbs[f];
+      const vis = done ? `<div class="thumb"><img src="${thumbs[f]}" alt=""></div>` : `<div class="orient">${orientHTML(f)}</div>`;
+      return `<label class="face${done ? " done" : ""}" for="fileIn" tabindex="0" role="button" data-face="${f}" aria-label="${done ? "Retake" : "Photograph"} the ${NAME[COLOR[f]]} face, ${NAME[COLOR[TOP[f]]]} on top">${vis}<b>${NAME[COLOR[f]]}</b><small>${NAME[COLOR[TOP[f]]]} on top</small></label>`;
+    }).join("");
+  }
+  function renderNet(bad = new Set()) {
+    $("net").innerHTML = FACES.map((f, fi) => `<div class="nf${bad.has(f) ? " bad" : ""}" data-f="${f}">${Array.from({ length: 9 }, (_, k) => {
+      const idx = fi * 9 + k, col = COLOR[stickers[idx]], ctr = k === 4;
+      return `<button class="st${ctr ? " ctr" : ""}" data-idx="${idx}"${ctr ? " disabled" : ""} style="background:${cssCol(col)}" aria-label="${NAME[COLOR[f]]} face, sticker ${k + 1}: ${NAME[col]}"></button>`;
+    }).join("")}</div>`).join("");
+    const counts = countMap();
+    $("counts").innerHTML = FACES.map(f => `<span class="cnt${counts[f] !== 9 ? " off" : ""}"><i style="background:${cssCol(COLOR[f])}"></i>${counts[f]}</span>`).join("");
+  }
+  function renderAll() {
+    renderFaces(); renderNet();
+    const n = Object.keys(thumbs).length;
+    $("scanCount").textContent = `${n} of 6`;
+    $("n1").classList.toggle("done", n === 6);
+    $("solveBtn").disabled = !solverReady;
+  }
+  function setMsg(t, kind = "") { const m = $("msg"); m.textContent = t; m.className = "msg" + (kind ? " " + kind : ""); }
+
+  function renderMoves(cur = -1) {
+    const groups = [];
+    tokens.forEach((t, i) => { const g = groups[groups.length - 1]; if (g && g.stage === t.stage) g.items.push(i); else groups.push({ stage: t.stage, items: [i] }); });
+    $("moves").innerHTML = groups.map(g => {
+      const [label, col] = STAGE[g.stage], isNow = g.items.includes(cur);
+      return `<div class="grp${isNow ? " now" : ""}"><div class="grp-h"><i style="background:var(${col})"></i>${label}<small>${g.items.length}</small></div><div class="mvs">${g.items.map(i => `<span class="mv${i < cur ? " done" : ""}${i === cur ? " cur" : ""}">${tokens[i].m}</span>`).join("")}</div></div>`;
+    }).join("");
+  }
+  function renderSummary(methodName) {
+    const turns = tokens.filter(t => t.stage !== "hold").length;
+    $("totalN").textContent = turns;
+    $("totalTxt").textContent = methodName === "cfop" ? "moves · CFOP" : "moves · fewest-moves solve";
+    const byStage = []; tokens.forEach(t => { if (t.stage === "hold") return; const l = byStage[byStage.length - 1]; if (l && l.stage === t.stage) l.n++; else byStage.push({ stage: t.stage, n: 1 }); });
+    $("stagebar").innerHTML = byStage.map(s => `<i style="flex:${s.n};background:var(${STAGE[s.stage][1]})"></i>`).join("");
+    $("legend").innerHTML = byStage.length > 1 ? byStage.map(s => `<span><i style="background:var(${STAGE[s.stage][1]})"></i>${STAGE[s.stage][0]} ${s.n}</span>`).join("") : "";
+    $("methodTag").textContent = methodName === "cfop" ? "CFOP" : "Fewest moves";
+  }
+
+  // ---------- solving ----------
+  function setBusy(on, text) { $("busy").hidden = !on; if (text) $("busyTxt").textContent = text; }
+  async function solve(autoplay) {
+    const v = validate();
+    if (!v.ok) {
+      const counts = countMap(), bad = new Set();
+      FACES.forEach((f, fi) => { for (let k = 0; k < 9; k++) if (counts[stickers[fi * 9 + k]] > 9) bad.add(f); });
+      renderNet(bad); setMsg(v.msg, "err"); return;
+    }
+    if (stickers.every((s, i) => s === FACES[Math.floor(i / 9)])) { setMsg("This cube is already solved.", "ok"); return; }
+    $("solveBtn").disabled = true;
+    const fast = split(v.cube.solve());
+    const scramble = invert(fast).join(" ");
+    let used = method;
+    if (method === "cfop") {
+      setMsg("Working out the CFOP stages…");
+      if (window.matchMedia("(max-width: 959px)").matches) $("h3s").scrollIntoView({ behavior: "smooth", block: "start" });
+      setBusy(true, "Usually 5–15 seconds");
+      const t0 = Date.now(); const tick = setInterval(() => setBusy(true, `${Math.round((Date.now() - t0) / 1000)} s · usually 5–15 seconds`), 1000);
+      try {
+        const r = await solveCfop(scramble);
+        const hold = split(r.orientation || "");
+        const list = split(r.solution);
+        const alg = [...hold, ...list].join(" ");
+        if (!(await verify(scramble, alg))) throw new Error("unverified");
+        tokens = hold.map(m => ({ m, stage: "hold" }));
+        let i = 0; r.segments.forEach(s => { for (let k = 0; k < s.n; k++) tokens.push({ m: list[i++], stage: STAGE[s.id] ? s.id : "solve" }); });
+        while (i < list.length) tokens.push({ m: list[i++], stage: "pll" });
+        if (hold.length) {
+          const o = holdAfter(hold);
+          $("hold").innerHTML = `<span>Start with white on top, green in front, then rotate the whole cube (<b>${hold.join(" ")}</b>) so <b>${NAME[o.U].toLowerCase()}</b> is on top and <b>${NAME[o.F].toLowerCase()}</b> faces you.</span>`;
+          $("hold").hidden = false;
+        } else $("hold").hidden = true;
+      } catch (e) {
+        used = "fast";
+        setMsg("CFOP took too long on this device, so here's the fewest-moves solution instead.", "err");
+      } finally { clearInterval(tick); setBusy(false); }
+    }
+    if (used === "fast") { tokens = fast.map(m => ({ m, stage: "solve" })); $("hold").hidden = true; }
+    player.experimentalSetupAlg = scramble;
+    player.alg = tokens.map(t => t.m).join(" ");
+    try { player.jumpToStart(); } catch (e) {}
+    renderSummary(used); renderMoves(-1);
+    $("result").hidden = false; $("emptyNote").hidden = true;
+    $("n2").classList.add("done"); $("n3").classList.add("done");
+    if (used === method) setMsg(`Solved in ${tokens.filter(t => t.stage !== "hold").length} moves. Press Play and follow along.`, "ok");
+    $("solveBtn").disabled = false;
+    if (window.matchMedia("(max-width: 959px)").matches) $("h3s").scrollIntoView({ behavior: "smooth", block: "start" });
+    if (autoplay) setTimeout(() => { try { player.jumpToStart(); player.play(); } catch (e) {} }, 700);
+  }
+
+  // ---------- camera ----------
+  function renderCamStep() {
+    const f = CAP_ORDER[camStep];
+    $("camOrient").innerHTML = orientHTML(f);
+    $("promptMain").textContent = STEPS[f][0];
+    $("promptSub").textContent = STEPS[f][1];
+    $("camBadge").textContent = `${camStep + 1}/6`;
+    $("strip").innerHTML = CAP_ORDER.map((x, i) => `<i class="${thumbs[x] ? "got" : ""}${i === camStep ? " cur" : ""}" style="${thumbs[x] ? `background:${cssCol(COLOR[x])}` : ""}" title="${NAME[COLOR[x]]}"></i>`).join("");
+    $("backBtn").disabled = camStep === 0;
+  }
+  function renderGuide(cols) { $("guide").innerHTML = Array.from({ length: 9 }, (_, k) => `<span><i style="background:${cols ? cssCol(cols[k]) : "transparent"}"></i></span>`).join(""); }
+  function liveTick() {
+    const v = $("video"); if (!v.videoWidth) return;
+    const { labs } = sampleSource(v, v.videoWidth, v.videoHeight, 0.8, false), ref = refs();
+    renderGuide(labs.map(l => COLOR[ref.reduce((b, r) => dist(l, r[1]) < dist(l, b[1]) ? r : b)[0]]));
+  }
+  async function startCamera() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { setMsg("Live camera isn't available in this view. Open the app in Chrome, or use photos instead.", "err"); showPhotos(true); return; }
+    try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 1280 } }, audio: false }); }
+    catch (e) { setMsg("Camera access was blocked. Allow the camera in your browser settings, or use photos instead.", "err"); showPhotos(true); return; }
+    $("video").srcObject = stream; try { await $("video").play(); } catch (e) {}
+    camStep = Math.max(0, CAP_ORDER.findIndex(x => !thumbs[x]));
+    $("startPane").hidden = true; $("cam").hidden = false; showPhotos(false);
+    renderGuide(); renderCamStep(); liveTimer = setInterval(liveTick, 220); setMsg("");
+    $("h1s").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  function stopCamera() {
+    clearInterval(liveTimer); liveTimer = null;
+    if (stream) stream.getTracks().forEach(t => t.stop());
+    stream = null; $("video").srcObject = null; $("cam").hidden = true; $("startPane").hidden = false;
+  }
+  function snap() {
+    const v = $("video"); if (!v.videoWidth) return;
+    const { labs, thumb } = sampleSource(v, v.videoWidth, v.videoHeight, 0.8, true);
+    storeFace(CAP_ORDER[camStep], labs, thumb);
+    const fl = $("flash"); fl.classList.add("on"); setTimeout(() => fl.classList.remove("on"), 60);
+    try { navigator.vibrate && navigator.vibrate(25); } catch (e) {}
+    const next = CAP_ORDER.findIndex(x => !thumbs[x]);
+    if (next === -1) {
+      stopCamera(); setMsg("All six faces scanned. Checking the cube…", "ok");
+      $("h2s").scrollIntoView({ behavior: "smooth", block: "start" });
+      if (solverReady) setTimeout(() => solve(true), 450);
+    } else { camStep = next; renderCamStep(); }
+  }
+  function showPhotos(on) { $("photoPane").hidden = !on; $("photoToggle").setAttribute("aria-expanded", String(on)); $("photoToggle").textContent = on ? "Hide photo upload" : "Use photos instead"; }
+
+  // ---------- events ----------
+  $("camBtn").addEventListener("click", startCamera);
+  $("stopBtn").addEventListener("click", stopCamera);
+  $("snapBtn").addEventListener("click", snap);
+  $("viewer").addEventListener("click", snap);
+  $("backBtn").addEventListener("click", () => { if (camStep > 0) { camStep--; renderCamStep(); } });
+  document.addEventListener("keydown", e => { if (stream && e.code === "Space" && e.target === document.body) { e.preventDefault(); snap(); } });
+  $("photoToggle").addEventListener("click", () => showPhotos($("photoPane").hidden));
+  $("faces").addEventListener("click", e => { const b = e.target.closest(".face"); if (!b) return; pendingFace = b.dataset.face; $("fileIn").value = ""; });
+  $("faces").addEventListener("keydown", e => { const b = e.target.closest(".face"); if (b && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); b.click(); } });
+  $("fileIn").addEventListener("change", async e => {
+    const file = e.target.files && e.target.files[0]; if (!file || !pendingFace) return;
+    const f = pendingFace; setMsg(`Reading the ${NAME[COLOR[f]].toLowerCase()} face…`);
+    try { const { labs, thumb } = await readPhoto(file); storeFace(f, labs, thumb);
+      const left = CAP_ORDER.filter(x => !thumbs[x]);
+      setMsg(left.length ? `Next: the ${NAME[COLOR[left[0]]].toLowerCase()} face, ${NAME[COLOR[TOP[left[0]]]].toLowerCase()} on top.` : "All six faces captured. Check the net, then solve.", left.length ? "" : "ok");
+    } catch (err) { setMsg("That photo couldn't be read. Try again with the face filling the frame.", "err"); }
+  });
+  $("net").addEventListener("click", e => {
+    const b = e.target.closest(".st"); if (!b || b.disabled) return;
+    const idx = +b.dataset.idx; stickers[idx] = FACES[(FACES.indexOf(stickers[idx]) + 1) % 6]; renderNet(); setMsg("");
+  });
+  $("demoBtn").addEventListener("click", () => {
+    if (!solverReady) { setMsg("The solver is still loading. Try again in a moment.", "err"); return; }
+    stickers = Cube.random().asString().split(""); samples = new Array(54).fill(null); thumbs = {};
+    renderAll(); setMsg("Demo scramble loaded. Press Solve this cube.", "ok");
+    $("h2s").scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+  $("resetBtn").addEventListener("click", () => {
+    stopCamera(); stickers = solved(); samples = new Array(54).fill(null); thumbs = {}; tokens = [];
+    player.experimentalSetupAlg = ""; player.alg = "";
+    $("result").hidden = true; $("emptyNote").hidden = false; ["n1", "n2", "n3"].forEach(n => $(n).classList.remove("done"));
+    $("methodTag").textContent = ""; renderAll(); setMsg("");
+  });
+  function setMethod(m) { method = m; $("mCfop").setAttribute("aria-pressed", String(m === "cfop")); $("mFast").setAttribute("aria-pressed", String(m === "fast")); }
+  $("mCfop").addEventListener("click", () => setMethod("cfop"));
+  $("mFast").addEventListener("click", () => setMethod("fast"));
+  $("solveBtn").addEventListener("click", () => solve(false));
+  let playing = false;
+  function setPlayUI(p) { playing = p; $("playBtn").querySelector("span").textContent = p ? "Pause" : "Play"; $("playBtn").querySelector("svg").innerHTML = p ? '<path d="M7 5h4v14H7zM13 5h4v14h-4z"/>' : '<path d="M7 5v14l12-7z"/>'; }
+  $("playBtn").addEventListener("click", () => { try { if (playing) player.pause(); else player.play(); } catch (e) {} });
+  $("restartBtn").addEventListener("click", () => { try { player.pause(); player.jumpToStart(); } catch (e) {} renderMoves(-1); });
+  $("result").addEventListener("click", e => {
+    const b = e.target.closest(".speed button"); if (!b) return;
+    document.querySelectorAll(".speed button").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+    player.tempoScale = +b.dataset.s;
+  });
+  try {
+    let lastIdx = -2;
+    player.experimentalModel.currentMoveInfo.addFreshListener(info => {
+      const i = Math.min(info.patternIndex, tokens.length);
+      if (tokens.length && i !== lastIdx) { lastIdx = i; renderMoves(i); }
+    });
+    player.experimentalModel.playingInfo.addFreshListener(info => setPlayUI(!!info.playing));
+  } catch (e) {}
+
+  // ---------- boot ----------
+  renderLogo(); renderAll();
+  setTimeout(() => {
+    try { Cube.initSolver(); solverReady = true; $("status").classList.add("ready"); $("statusTxt").textContent = "Solver ready"; renderAll(); try { cfopWorker(); } catch (e) {} }
+    catch (e) { $("statusTxt").textContent = "Solver failed to load"; }
+  }, 80);
+})();
+</script>
